@@ -10,28 +10,46 @@ grep -Ev '^$|^#' "${CONFIG}" |sed -e 's/^/    - /'
 echo " * Processes:"
 ps -o ppid,pid,user,group,args |tail -n +2
 
+function trim { echo -e "$1" | tr -d '[:space:]'; }
+
+function ptable { ps -o ppid,pid,user,group,etime,time,comm,stat,args |tail -n +2; }
+
+function is_running {
+   # is_running(service)
+   sv_args=$(get_value StartCmd $1)
+   echo "$sv_args"
+   ptable | grep -Eq '^.* '"$sv_args"'$'
+}
+
 function get_value {
     # get_value(key, service)
-    grep '^'"$1"' ' "${SERVICE_DIRECTORY}/$2.conf" |awk '{sub($1 FS,"")}1'
+    echo $(grep '^'"$1"' ' "${SERVICE_DIRECTORY}/$2.conf" | awk '{sub($1 FS,"")}1')
 }
 
 function get_name {
     # get_name(service)
-    echo $(basename $service) |sed -e 's/\'"${SERVICE_FILE_EXTENSION}"'$//'
+    echo $(basename $1) | sed -e 's/\'"${SERVICE_FILE_EXTENSION}"'$//'
 }
 
 
 function check {
 
     for service in ${SERVICE_DIRECTORY}/*.conf; do
-        get_name $service
-        done;
+        sv_name=$(get_name $service)
+        desired_state=$(trim "$(get_value DesiredState $sv_name)")
+	    echo "Checking $sv_name: DesiredState=$desired_state"
+            if is_running $sv_name
+            then echo " * Service $sv_name is running."
+            else echo " * Service $sv_name is stopped."
+            fi
+        done
         
         sleep ${PROCESS_CHECK_PERIOD}
 }
 
 eval $(get_value StartCmd foo) &
-echo $!
+eval $(get_value StartCmd bar) &
 
 while true; do check "${SELF}"; done
+
 
