@@ -1,0 +1,37 @@
+#!/bin/sh
+
+SELF="$(readlink -f ${0})"
+CONFIG="${SELF}.cfg"
+source "$CONFIG"
+
+echo " * IP:            $(hostname -i)"
+echo " * Configuration: ${CONFIG}"
+grep -Ev '^$|^#' "${CONFIG}" |sed -e 's/^/    - /'
+echo " * Processes:"
+ps -o ppid,pid,user,group,args |tail -n +2
+
+function get_value {
+    # get_value(key, service)
+    grep '^'"$1"' ' "${SERVICE_DIRECTORY}/$2.conf" |awk '{sub($1 FS,"")}1'
+}
+
+function get_name {
+    # get_name(service)
+    echo $(basename $service) |sed -e 's/\'"${SERVICE_FILE_EXTENSION}"'$//'
+}
+
+
+function check {
+
+    for service in ${SERVICE_DIRECTORY}/*.conf; do
+        get_name $service
+        done;
+        
+        sleep ${PROCESS_CHECK_PERIOD}
+}
+
+eval $(get_value StartCmd foo) &
+echo $!
+
+while true; do check "${SELF}"; done
+
