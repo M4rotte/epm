@@ -1,7 +1,7 @@
 #!/bin/sh
 
 SELF="$(readlink -f ${0})"
-CONFIG="${SELF}.cfg"
+CONFIG="/etc/epm/epm.cfg"
 source "$CONFIG"
 
 echo " * IP:            $(hostname -i)"
@@ -10,28 +10,35 @@ grep -Ev '^$|^#' "${CONFIG}" |sed -e 's/^/    - /'
 echo " * Processes:"
 ps -o ppid,pid,user,group,args |tail -n +2
 
-function trim { echo -e "$1" | tr -d '[:space:]'; }
+init_db() {
+    sv_database_file=$(basename "${SERVICE_DATABASE}")
+    sv_database_directory=$(dirname "${SERVICE_DATABASE}")
+    [ -d "$sv_database_directory" ] || { echo "Creating directory '$sv_database_directory'" && mkdir -p "$sv_database_directory" ; }
+    [ -f "sv_database_file" ] || { echo "Creating database '$sv_database_file'" && ptable > "${SERVICE_DATABASE}"; }
+}
 
-function ptable { ps -o ppid,pid,user,group,etime,time,comm,stat,args |tail -n +2; }
+trim() { echo -e "$1" | tr -d '[:space:]'; }
 
-function is_running {
+ptable() { ps -o ppid,pid,user,group,etime,time,comm,stat,args |tail -n +2; }
+
+is_running() {
    # is_running(service)
    sv_args=$(get_value StartCmd $1)
    ptable | grep -Eq '^.* '"$sv_args"'$'
 }
 
-function get_pid {
+get_pid() {
     # get_pid(service_args)
     ptable | grep -E '^.* '"$1"'$' |awk '{print $2}'
 
 }
 
-function get_value {
+get_value() {
     # get_value(key, service)
     echo $(grep '^'"$1"' ' "${SERVICE_DIRECTORY}/$2.conf" | awk '{sub($1 FS,"")}1')
 }
 
-function get_stop_cmd {
+get_stop_cmd() {
     # get_stop_cmd(service)
     stop_cmd=$(get_value StopCmd $1)
     start_cmd=$(get_value StartCmd $1)
@@ -39,15 +46,18 @@ function get_stop_cmd {
     echo "$stop_cmd"
 }
 
-function get_name {
+get_name() {
     # get_name(service)
     echo $(basename $1) | sed -e 's/\'"${SERVICE_FILE_EXTENSION}"'$//'
 }
 
+check() {
 
-function check {
-
+    total_sv=0
+    ok_sv=0
+    
     for service in ${SERVICE_DIRECTORY}/*.conf; do
+        total_sv=$(($total_sv + 1))
         sv_name=$(get_name $service)
         desired_state=$(trim "$(get_value DesiredState $sv_name)")
 	    echo "Checking $sv_name: DesiredState=$desired_state"
@@ -55,29 +65,37 @@ function check {
             then echo " * Service $sv_name is running."
                  case $desired_state in
                      stopped)
-                         echo "Stopping service $sv_name"
-                         get_stop_cmd $sv_name
-                         eval $(get_stop_cmd $sv_name)
+                         stop_cmd="$(get_stop_cmd $sv_name)"
+                         echo "Stopping service $sv_name with \`$stop_cmd\`"
+                         eval $stop_cmd &
                      ;;
-                     *)
+                     running)
+                         ok_sv=$(($pk_sv + 1))
+                     ;;
                  esac
             else echo " * Service $sv_name is stopped."
                  case $desired_state in
                      running)
-                         echo "Restarting service $sv_name"
-                         eval $(get_value StartCmd $sv_name) &
+                         start_cmd="$(get_value StartCmd $sv_name)"
+                         echo "Restarting service $sv_name with \`$start_cmd\`"
+                         eval $start_cmd &
                      ;;
-                     *)
+                     stopped)
+                         ok_sv=$(($pk_sv + 1))
+                     ;;
                  esac
             fi
         done
         
+        echo 
         sleep ${PROCESS_CHECK_PERIOD}
 }
 
 eval $(get_value StartCmd foo) &
 eval $(get_value StartCmd bar) &
 eval $(get_value StartCmd baz) &
+
+sleep 2
 
 while true; do check "${SELF}"; done
 

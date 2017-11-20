@@ -1,0 +1,11 @@
+version: "3.4"
+
+services:
+  epm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        http_proxy: "${http_proxy}"
+    image: oxyure/epm:latest
+      
