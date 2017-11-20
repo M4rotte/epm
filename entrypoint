@@ -17,13 +17,26 @@ function ptable { ps -o ppid,pid,user,group,etime,time,comm,stat,args |tail -n +
 function is_running {
    # is_running(service)
    sv_args=$(get_value StartCmd $1)
-   echo "$sv_args"
    ptable | grep -Eq '^.* '"$sv_args"'$'
+}
+
+function get_pid {
+    # get_pid(service_args)
+    ptable | grep -E '^.* '"$1"'$' |awk '{print $2}'
+
 }
 
 function get_value {
     # get_value(key, service)
     echo $(grep '^'"$1"' ' "${SERVICE_DIRECTORY}/$2.conf" | awk '{sub($1 FS,"")}1')
+}
+
+function get_stop_cmd {
+    # get_stop_cmd(service)
+    stop_cmd=$(get_value StopCmd $1)
+    start_cmd=$(get_value StartCmd $1)
+    [ -z "$stop_cmd" ] && stop_cmd='kill -15 '$(get_pid "$start_cmd")
+    echo "$stop_cmd"
 }
 
 function get_name {
@@ -40,7 +53,22 @@ function check {
 	    echo "Checking $sv_name: DesiredState=$desired_state"
             if is_running $sv_name
             then echo " * Service $sv_name is running."
+                 case $desired_state in
+                     stopped)
+                         echo "Stopping service $sv_name"
+                         get_stop_cmd $sv_name
+                         eval $(get_stop_cmd $sv_name)
+                     ;;
+                     *)
+                 esac
             else echo " * Service $sv_name is stopped."
+                 case $desired_state in
+                     running)
+                         echo "Restarting service $sv_name"
+                         eval $(get_value StartCmd $sv_name) &
+                     ;;
+                     *)
+                 esac
             fi
         done
         
@@ -49,6 +77,7 @@ function check {
 
 eval $(get_value StartCmd foo) &
 eval $(get_value StartCmd bar) &
+eval $(get_value StartCmd baz) &
 
 while true; do check "${SELF}"; done
 
