@@ -4,12 +4,6 @@ SELF="$(readlink -f ${0})"
 CONFIG="/etc/epm/epm.cfg"
 source "$CONFIG"
 
-echo " * IP:            $(hostname -i)"
-echo " * Configuration: ${CONFIG}"
-grep -Ev '^$|^#' "${CONFIG}" |sed -e 's/^/    - /'
-echo " * Processes:"
-ps -o ppid,pid,user,group,args |tail -n +2
-
 init_db() {
     sv_database_file=$(basename "${SERVICE_DATABASE}")
     sv_database_directory=$(dirname "${SERVICE_DATABASE}")
@@ -40,10 +34,16 @@ get_value() {
 
 get_stop_cmd() {
     # get_stop_cmd(service)
-    stop_cmd=$(get_value StopCmd $1)
-    start_cmd=$(get_value StartCmd $1)
+    stop_cmd="$(get_value StopCmd $1)"
+    start_cmd="$(get_value StartCmd $1)"
     [ -z "$stop_cmd" ] && stop_cmd='kill -15 '$(get_pid "$start_cmd")
     echo "$stop_cmd"
+}
+
+get_start_cmd() {
+    # get_start_cmd(service)
+    start_cmd="$(get_value StartCmd $1)"
+    echo "$start_cmd"
 }
 
 get_name() {
@@ -70,7 +70,7 @@ check() {
                          eval $stop_cmd &
                      ;;
                      running)
-                         ok_sv=$(($pk_sv + 1))
+                         ok_sv=$(($ok_sv + 1))
                      ;;
                  esac
             else echo " * Service $sv_name is stopped."
@@ -81,21 +81,57 @@ check() {
                          eval $start_cmd &
                      ;;
                      stopped)
-                         ok_sv=$(($pk_sv + 1))
+                         ok_sv=$(($ok_sv + 1))
                      ;;
                  esac
             fi
         done
-        
-        echo 
-        sleep ${PROCESS_CHECK_PERIOD}
+        echo
+        if [ $ok_sv -lt $total_sv ]
+        then echo "⇨ WARNING: $ok_sv/$total_sv services OK"
+        else echo "⇨ All services are OK ($ok_sv/$total_sv)"
+        fi
+        echo && sleep ${PROCESS_CHECK_PERIOD}
 }
 
-eval $(get_value StartCmd foo) &
-eval $(get_value StartCmd bar) &
-eval $(get_value StartCmd baz) &
+start() {
+    # start(service)
+    eval $(get_start_cmd $1) &
+}
 
-sleep 2
+generate_host_keys_if_not_exist() {
+    [ -f /etc/ssh/ssh_host_dsa_key ]     || { echo "Generating DSA host key…"     && ssh-keygen -f /etc/ssh/ssh_host_dsa_key -N '' -t dsa 1>/dev/null; }
+    [ -f /etc/ssh/ssh_host_rsa_key ]     || { echo "Generating RSA host key…"     && ssh-keygen -f /etc/ssh/ssh_host_rsa_key -N '' -t rsa 1>/dev/null; }
+    [ -f /etc/ssh/ssh_host_ecdsa_key ]   || { echo "Generating ECDSA host key…"   && ssh-keygen -f /etc/ssh/ssh_host_ecdsa_key -N '' -t rsa 1>/dev/null; }
+    [ -f /etc/ssh/ssh_host_ed25519_key ] || { echo "Generating ED25519 host key…" && ssh-keygen -f /etc/ssh/ssh_host_ed25519_key -N '' -t rsa 1>/dev/null; }
+}
+
+show_host_keys() {
+    ssh-keygen -y -l -f /etc/ssh/ssh_host_rsa_key
+    ssh-keygen -y -l -f /etc/ssh/ssh_host_dsa_key
+    ssh-keygen -y -l -f /etc/ssh/ssh_host_ecdsa_key
+    ssh-keygen -y -l -f /etc/ssh/ssh_host_ed25519_key
+}
+
+show_setup() {
+    echo -e "\n * IP:            $(hostname -i)"
+    echo -e "\n * Configuration: ${CONFIG}\n"
+    grep -Ev '^$|^#' "${CONFIG}" |sed -e 's/^/    - /'
+    echo -e "\n * Host keys:\n"
+    show_host_keys
+    echo -e "\n * Processes:\n"
+    ptable
+    echo
+}
+
+generate_host_keys_if_not_exist
+
+start foo
+start baz
+start bar
+
+show_setup
+
 
 while true; do check "${SELF}"; done
 
