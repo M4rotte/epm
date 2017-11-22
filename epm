@@ -2,7 +2,6 @@
 
 SELF="$(readlink -f ${0})"
 CONFIG="/etc/epm/epm.cfg"
-source "$CONFIG"
 
 init_db() {
     sv_database_file=$(basename "${SERVICE_DATABASE}")
@@ -11,13 +10,12 @@ init_db() {
     [ -f "sv_database_file" ] || { echo "Creating database '$sv_database_file'" && ptable > "${SERVICE_DATABASE}"; }
 }
 
-trim() { echo -e "$1" | tr -d '[:space:]'; }
-
 ptable() { ps -o ppid,pid,user,group,etime,time,comm,stat,args |tail -n +2; }
 
 is_running() {
    # is_running(service)
    sv_args=$(get_value StartCmd $1)
+   [ -z "$sv_args" -o "$sv_args" = "$1" ] && sv_args="$(which $1)"
    ptable | grep -Eq '^.* '"$sv_args"'$'
 }
 
@@ -29,20 +27,25 @@ get_pid() {
 
 get_value() {
     # get_value(key, service)
-    echo $(grep '^'"$1"' ' "${SERVICE_DIRECTORY}/$2.conf" | awk '{sub($1 FS,"")}1')
+    echo "$2: $1: '"$(grep '^'"$1"' ' "${SERVICE_DIRECTORY}/$2.conf" | awk '{sub($1 FS,"")}1')"'" >> /tmp/xxx
+    try=$(echo $(grep '^'"$1"' ' "${SERVICE_DIRECTORY}/$2.conf" | awk '{sub($1 FS,"")}1'))
+    if [ -n "$try" ]; then echo "$try"; else echo "$2"; fi
 }
 
 get_stop_cmd() {
     # get_stop_cmd(service)
     stop_cmd="$(get_value StopCmd $1)"
     start_cmd="$(get_value StartCmd $1)"
-    [ -z "$stop_cmd" ] && stop_cmd='kill -15 '$(get_pid "$start_cmd")
+    [ -z "$stop_cmd" -o "$stop_cmd" = "$1" ] && stop_cmd='kill -15 '$(get_pid "$start_cmd")
+    echo "GET STOP CMD: $start_cmd" >> /tmp/xxx
     echo "$stop_cmd"
 }
 
 get_start_cmd() {
     # get_start_cmd(service)
     start_cmd="$(get_value StartCmd $1)"
+    [ -z "$start_cmd" -o "$start_cmd" = "$1" ] && start_cmd='exec $(which '"$1"')'
+    echo "GET START CMD: $start_cmd" >> /tmp/xxx
     echo "$start_cmd"
 }
 
@@ -59,28 +62,29 @@ check() {
     for service in ${SERVICE_DIRECTORY}/*.conf; do
         total_sv=$(($total_sv + 1))
         sv_name=$(get_name $service)
-        desired_state=$(trim "$(get_value DesiredState $sv_name)")
+        desired_state="$(get_value DesiredState $sv_name)"
+        [ -z "$desired_state" -o "$desired_state" = "$sv_name" ] && desired_state="$PROCESS_DEFAULT_STATE"
 	    echo "Checking $sv_name: DesiredState=$desired_state"
             if is_running $sv_name
             then echo " * Service $sv_name is running."
                  case $desired_state in
-                     stopped)
+                     'stopped')
                          stop_cmd="$(get_stop_cmd $sv_name)"
                          echo "Stopping service $sv_name with \`$stop_cmd\`"
                          eval $stop_cmd &
                      ;;
-                     running)
+                     'running')
                          ok_sv=$(($ok_sv + 1))
                      ;;
                  esac
             else echo " * Service $sv_name is stopped."
                  case $desired_state in
-                     running)
-                         start_cmd="$(get_value StartCmd $sv_name)"
+                     'running')
+                         start_cmd="$(get_start_cmd $sv_name)"
                          echo "Restarting service $sv_name with \`$start_cmd\`"
                          eval $start_cmd &
                      ;;
-                     stopped)
+                     'stopped')
                          ok_sv=$(($ok_sv + 1))
                      ;;
                  esac
@@ -88,8 +92,8 @@ check() {
         done
         echo
         if [ $ok_sv -lt $total_sv ]
-        then echo "⇨ WARNING: $ok_sv/$total_sv services OK"
-        else echo "⇨ All services OK ($ok_sv/$total_sv)"
+            then echo "⇨ WARNING: $ok_sv/$total_sv services OK"
+            else echo "⇨ All services OK ($ok_sv/$total_sv)"
         fi
         echo && sleep ${PROCESS_CHECK_PERIOD}
 }
@@ -124,11 +128,13 @@ show_setup() {
     echo
 }
 
+source "$CONFIG"
+
 generate_host_keys_if_not_exist
 
 start foo
 start baz
-start bar
+#~ start bar
 
 show_setup
 
