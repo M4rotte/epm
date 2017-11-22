@@ -89,7 +89,7 @@ check() {
         echo
         if [ $ok_sv -lt $total_sv ]
         then echo "⇨ WARNING: $ok_sv/$total_sv services OK"
-        else echo "⇨ All services are OK ($ok_sv/$total_sv)"
+        else echo "⇨ All services OK ($ok_sv/$total_sv)"
         fi
         echo && sleep ${PROCESS_CHECK_PERIOD}
 }

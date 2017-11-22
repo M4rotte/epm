@@ -11,6 +11,5 @@ services:
       dockerfile: Dockerfile
       args:
        - http_proxy=${http_proxy}
-       - ROOT_PASSWD=${ROOT_PASSWD}
     image: oxyure/epm:latest
       

@@ -6,11 +6,11 @@ LABEL com.oxyure.vendor="United Microbiotas" \
 
 RUN apk update && apk add --no-cache tini git nano openssh bind-tools openssl
 
-ARG ROOT_PASSWD
-
 RUN sed -i -e 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' \
            -e 's/#PasswordAuthentication yes/PasswordAuthentication yes/' \
               /etc/ssh/sshd_config &&\
+    [ -n "${ROOT_PASSWD}" ] || ROOT_PASSWD=$(echo $RANDOM | md5sum | awk '{print $1}') &&\
+    echo "Root password is: ${ROOT_PASSWD}" &&\
     echo root:${ROOT_PASSWD} | chpasswd
 
 RUN mkdir /var/epm /etc/epm
