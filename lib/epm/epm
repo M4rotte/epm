@@ -1,8 +1,5 @@
 #!/bin/sh
 
-SELF="$(readlink -f ${0})"
-CONFIG="/etc/epm/epm.cfg"
-
 init_db() {
     sv_database_file=$(basename "${SERVICE_DATABASE}")
     sv_database_directory=$(dirname "${SERVICE_DATABASE}")
@@ -27,7 +24,6 @@ get_pid() {
 
 get_value() {
     # get_value(key, service)
-    echo "$2: $1: '"$(grep '^'"$1"' ' "${SERVICE_DIRECTORY}/$2.conf" | awk '{sub($1 FS,"")}1')"'" >> /tmp/xxx
     try=$(echo $(grep '^'"$1"' ' "${SERVICE_DIRECTORY}/$2.conf" | awk '{sub($1 FS,"")}1'))
     if [ -n "$try" ]; then echo "$try"; else echo "$2"; fi
 }
@@ -103,7 +99,7 @@ start() {
     eval $(get_start_cmd $1) &
 }
 
-generate_host_keys_if_not_exist() {
+generate_host_keys_if_not_exists() {
     [ -f /etc/ssh/ssh_host_dsa_key ]     || { echo "Generating DSA host key…"     && ssh-keygen -f /etc/ssh/ssh_host_dsa_key -N '' -t dsa 1>/dev/null; }
     [ -f /etc/ssh/ssh_host_rsa_key ]     || { echo "Generating RSA host key…"     && ssh-keygen -f /etc/ssh/ssh_host_rsa_key -N '' -t rsa 1>/dev/null; }
     [ -f /etc/ssh/ssh_host_ecdsa_key ]   || { echo "Generating ECDSA host key…"   && ssh-keygen -f /etc/ssh/ssh_host_ecdsa_key -N '' -t rsa 1>/dev/null; }
@@ -127,18 +123,3 @@ show_setup() {
     ptable
     echo
 }
-
-source "$CONFIG"
-
-generate_host_keys_if_not_exist
-
-start foo
-start baz
-#~ start bar
-
-show_setup
-
-
-while true; do check "${SELF}"; done
-
-

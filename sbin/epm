@@ -1,0 +1,22 @@
+#!/bin/sh
+
+SELF="$(readlink -f ${0})"
+CONFIG="/etc/epm/epm.cfg"
+
+source "$CONFIG"
+source "$EPM_LIBDIR/epm"
+
+generate_host_keys_if_not_exists
+
+start foo
+start baz
+#~ start bar
+
+show_setup
+
+
+while true; do check "${SELF}"; done;
+
+
+
+

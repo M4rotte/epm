@@ -5,7 +5,6 @@ services:
     env_file: .env
     environment:
      - http_proxy
-     - ROOT_PASSWD
     build:
       context: .
       dockerfile: Dockerfile

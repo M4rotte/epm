@@ -6,21 +6,17 @@ LABEL com.oxyure.vendor="United Microbiotas" \
 
 RUN apk update && apk add --no-cache tini git nano openssh bind-tools openssl
 
-RUN sed -i -e 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' \
-           -e 's/#PasswordAuthentication yes/PasswordAuthentication yes/' \
-              /etc/ssh/sshd_config &&\
-    [ -n "${ROOT_PASSWD}" ] || ROOT_PASSWD=$(echo $RANDOM | md5sum | awk '{print $1}') &&\
-    echo "Root password is: ${ROOT_PASSWD}" &&\
-    echo root:${ROOT_PASSWD} | chpasswd
-
-RUN mkdir /var/epm /etc/epm
-COPY epm /sbin/epm
-COPY epm.cfg /etc/epm/epm.cfg
-COPY sleep.sh /bin/sleep.sh
-COPY services /etc/epm/services
+RUN  adduser -h /var/epm -s /sbin/nologin -S -D -H epm &&\
+     mkdir /var/epm /etc/epm /lib/epm
+COPY sbin/epm /sbin/epm
+COPY lib/epm/epm /lib/epm/epm
+COPY etc/epm/epm.cfg /etc/epm/epm.cfg
+COPY bin/sleep.sh /bin/sleep.sh
+COPY etc/epm/services /etc/epm/services
+RUN chown -R epm:root /lib/epm /var/epm /etc/epm
 
 EXPOSE 22/tcp
 
 USER root
-WORKDIR /root
+WORKDIR /var/epm
 ENTRYPOINT ["/sbin/tini","-v","--","/sbin/epm"]
