@@ -2,14 +2,9 @@ version: "3.4"
 
 services:
   epm:
-    env_file: .env
-    environment:
-     - http_proxy
-     - ROOT_PASSWD
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-       - http_proxy=${http_proxy}
     image: oxyure/epm:latest
-      
+    container_name: epm
+    hostname: epm
+
