@@ -1,5 +1,4 @@
 #!/bin/sh
-<<<<<<< HEAD
 # /sbin/epm
 
 EPM_SELF=$0
