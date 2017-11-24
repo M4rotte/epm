@@ -1,4 +1,5 @@
 #!/bin/sh
+<<<<<<< HEAD
 # /sbin/epm
 
 EPM_SELF=$0
@@ -30,7 +31,6 @@ trap restart 1
 
 # run forever
 while true; do run; done
-
 
 
 
