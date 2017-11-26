@@ -1,0 +1,16 @@
+#!/bin/sh
+# /lib/epm/epmps-lib
+
+ps_store_state() {
+    # ps_store_state(pid,service)
+    # Write the ps output corresponding to this pid in a file named <service>.pid in $EPM_RUN_DIR,
+    # which with the default setting gives /var/run/<service>.pid
+    awk_cmd='{ if ($4 == '"$1"') { print $0 } }'
+    ps -o user,group,comm,pid,ppid,pgid,etime,nice,rgroup,ruser,time,tty,vsz,stat,rss,args |\
+        awk "$awk_cmd" > "$EPM_RUN_DIR/$2.pid"
+}
+
+ps_get_state() {
+    # ps_get_state(pid,service)
+    cat "$EPM_RUN_DIR/$1.pid"
+}

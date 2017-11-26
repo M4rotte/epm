@@ -7,8 +7,8 @@ db_key_exists() {
 }
 
 db_update() {
-    # update_value(key,value)
-    echo " → update_value($1,$2)"
+    # db_update(key,value)
+    echo " → db_update($1,$2)"
     tmp_file=/tmp/$RANDOM-$$
     awk_cmd='{if ($1 ~ "^'"$1"'$") { printf "%s%s%s\n",$1,"'"$EPM_DB_SEP"'","'"$2"'" } else {print $0} }'
     awk_ifs="$EPM_DB_SEP"
@@ -17,14 +17,13 @@ db_update() {
 }
 
 db_insert() {
-    # insert_value(key,value)
-    echo " → insert_value($1,$2)"
+    # db_insert(key,value)
+    echo " → db_insert($1,$2)"
     printf "%s%s%s\n" "$1" "$EPM_DB_SEP" "$2" >> "$EPM_DB"
 }
 
 db_store() {
-    # store(key, value)
-    #~ echo " * store($1,$2)"
+    # db_store(key,value)
     if db_key_exists "$1"; then
         db_update "$1" "$2"
     else
@@ -33,12 +32,13 @@ db_store() {
 }
 
 db_clean() {
-    echo "Before the clean: $(wc -l "$EPM_DB")"
+    #~ echo "Before the cleaning: $(wc -l "$EPM_DB")"
     tmp_file=/tmp/$RANDOM-$$
     sort -u "$EPM_DB"> $tmp_file
     cat $tmp_file > "$EPM_DB"
     rm $tmp_file
-    echo "After the clean: $(wc -l "$EPM_DB")"
+    echo "$(wc -l "$EPM_DB") records in database"
+    #~ echo "After the clean: $(wc -l "$EPM_DB")"
 }
 
 db_get() { 

@@ -26,6 +26,7 @@ trap restart 1
 # source files
 . "${EPM_LIB}"
 . "${EPM_DB_LIB}"
+. "${EPM_PS_LIB}"
 
 wake_up
 
@@ -47,7 +48,6 @@ db_insert bob XXXX
 db_update key 999
 db_update bob 00000
 
-
 cat "$EPM_DB"
 
 db_clean
@@ -63,15 +63,12 @@ db_update 888 nnn
 db_insert 888 nnn
 db_insert tttt 987
 db_insert tttt 333
-
-cat "$EPM_DB"
-
-db_clean
-
-cat "$EPM_DB"
-
 db_get 888
 db_get tttt
+db_store bob 100
+db_store tttt TGTggtT
+
+db_clean
 
 
 # run forever

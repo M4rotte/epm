@@ -6,16 +6,38 @@ log()             { timestamp; echo "$1"; }
 graceful_exit()   { echo "EPM exiting… Bye!"; exit 0; }
 restart()         { exec "$EPM_SELF" "$EPM_CONF"; }
 
+dice() {
+    # dice(val,max)
+    # Get a random number between 1 and 'max', return true if 'val' is strictly superior or equal.
+    [ $(shuf -i1-$2 -n1) -le $1 ]
+}
+
 wake_up() {
     mkdir -p "$EPM_DB_DIR"
     touch "$EPM_DB"
+    ps_store_state $$ _self
+    ps_store_state 1  _init
+}
+
+dispatch() {
+    dice 2 5 && db_clean # Get rid of non-uniq entries. Randomly but roughly each 5/2 run…
+                         # TODO: write a function that works like anacron
+                         
+    dice 3 7 && db_store 'toto' $RANDOM
+    dice 2 10 && db_insert "xx$RANDOM" "$(date)"
+    dice 6 9 && ps_store_state $$ _self
+    dice 6 9 && ps_store_state 1 _init
+    dice 6 9 && ps_get_state _self
+    dice 6 9 && ps_get_state _init
 }
 
 run() {
     cat "$EPM_DB"
     run_start=$(date +%s)
     log "Starting run #${EPM_RUN_COUNTER}…"
-    sleep 1."$RANDOM"
+    
+    dispatch
+    
     run_elapsed=$(echo "$(date +%s) $run_start - p" | dc )
     left_to_sleep=$(echo "$EPM_RUN_DELAY $run_elapsed - p" | dc)
     EPM_RUN_COUNTER=$(( $EPM_RUN_COUNTER + 1 ))
