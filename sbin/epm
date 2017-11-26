@@ -1,6 +1,10 @@
 #!/bin/sh
 # /sbin/epm
 
+# Error codes:
+# 1.  No configuration file specified
+# 30. One or more binaries are missing (grep, awk, …)
+
 EPM_SELF=$0
 EPM_CONF=$1
 EPM_RUN_COUNTER=0

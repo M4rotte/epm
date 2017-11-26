@@ -1,6 +1,9 @@
 #!/bin/sh
 # /lib/epm/epmdb-lib
 
+# $EPM_DB_SEP: field separator, default is '|'
+# $EPM_DB: file name, must not be empty
+
 db_key_exists() {
     grep_cmd='^'"$1"'.*\'"$EPM_DB_SEP"'.*$'
     grep -qE "$grep_cmd" "$EPM_DB"

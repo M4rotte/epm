@@ -2,46 +2,74 @@
 # /lib/epm/epm-lib
 
 timestamp()       { printf `date -Is` && echo -n ' '; }
-log()             { timestamp; echo "$1"; }
+write_log()       { timestamp; echo -e "$1" >> "$EPM_LOG"; }
 graceful_exit()   { echo "EPM exiting… Bye!"; exit 0; }
 restart()         { exec "$EPM_SELF" "$EPM_CONF"; }
 
 dice() {
     # dice(val,max)
     # Get a random number between 1 and 'max', return true if 'val' is strictly superior or equal.
-    [ $(shuf -i1-$2 -n1) -le $1 ]
+    [ $(shuf -i0-$2 -n1) -le $1 ]
+}
+
+check_env() {
+    # Check if we got all we need. Exit on error if not.
+    for prg in grep awk touch printf shuf; do
+        [ -x "$(which $prg)" ] || { echo "$prg not found, exiting. (\$PATH is $PATH)"; exit 30; }
+    done
 }
 
 wake_up() {
-    mkdir -p "$EPM_DB_DIR"
-    touch "$EPM_DB"
-    ps_store_state $$ _self
-    ps_store_state 1  _init
+    {
+        check_env
+        mkdir -p "$EPM_DB_DIR" "$EPM_LOG_DIR"
+        touch "$EPM_DB" "$EPM_LOG"
+        ps_store_current_state $$ _self
+        ps_store_current_state 1  _init
+    } \
+    || write_log "Error during EPM awakening. Exiting…"
+    
+}
+
+truncate_files() {
+    # truncate_files(directory)
+    tmp_file=/tmp/epm-$RANDOM-$$
+    for file in $@; do
+        tail -n $EPM_RUN_PID_MAXLINE "$file" > $tmp_file
+        mv $tmp_file "$file"
+    done
 }
 
 dispatch() {
+    # Do shit randomly (WIP)
     dice 2 5 && db_clean # Get rid of non-uniq entries. Randomly but roughly each 5/2 run…
                          # TODO: write a function that works like anacron
                          
     dice 3 7 && db_store 'toto' $RANDOM
     dice 2 10 && db_insert "xx$RANDOM" "$(date)"
-    dice 6 9 && ps_store_state $$ _self
-    dice 6 9 && ps_store_state 1 _init
-    dice 6 9 && ps_get_state _self
-    dice 6 9 && ps_get_state _init
+    dice 6 9 && ps_store_current_info $$ _self
+    dice 6 9 && ps_store_current_info 1 _init
+    #~ dice 2 9 && ps_get_current_info _self
+    #~ dice 1 7 && ps_get_current_info _init
+    dice 2 9 && ps_get_last_info _self
+    dice 1 7 && ps_get_last_info _init
+    dice 4 9 && ps_get_last_args _self
+    dice 5 7 && ps_get_last_args _init
+    dice 1 2 && truncate_files "$EPM_LOG_DIR"/*
+    dice 1 2 && truncate_files "$EPM_RUN_DIR"/*
 }
 
 run() {
     cat "$EPM_DB"
     run_start=$(date +%s)
-    log "Starting run #${EPM_RUN_COUNTER}…"
+    write_log "\nStarting run #${EPM_RUN_COUNTER}…"
     
     dispatch
     
     run_elapsed=$(echo "$(date +%s) $run_start - p" | dc )
     left_to_sleep=$(echo "$EPM_RUN_DELAY $run_elapsed - p" | dc)
     EPM_RUN_COUNTER=$(( $EPM_RUN_COUNTER + 1 ))
-    log "Sleeping $left_to_sleep seconds…"
+    write_log "Sleeping $left_to_sleep seconds…"
     sleep $left_to_sleep
 }
 

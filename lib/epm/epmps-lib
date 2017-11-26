@@ -1,16 +1,41 @@
 #!/bin/sh
 # /lib/epm/epmps-lib
 
-ps_store_state() {
-    # ps_store_state(pid,service)
-    # Write the ps output corresponding to this pid in a file named <service>.pid in $EPM_RUN_DIR,
-    # which with the default setting gives /var/run/<service>.pid
+# $EPM_DB_SEP: field separator
+# NB: Fields separated by this separator are:
+#      - `$(date +%s)`
+#      - `ps -o user,group,comm,pid,ppid,pgid,etime,nice,rgroup,ruser,time,tty,vsz,stat,rss,args | awk '{ if ($4 == '"$1"') { print $0 } }'`
+# The ps’s output values which compose the second field are separated by spaces.
+
+ps_store_current_info() {
+    # ps_store_info(pid,service)
+    # Write the ps output prefixed with time, which corresponds to this pid, in a file named <service name>.pid in $EPM_RUN_DIR,
+    # With with the default settings it’s /var/run/<service name>.pid
     awk_cmd='{ if ($4 == '"$1"') { print $0 } }'
+    printf "$(date +%s)$EPM_DB_SEP" >> "$EPM_RUN_DIR/$2.pid"
     ps -o user,group,comm,pid,ppid,pgid,etime,nice,rgroup,ruser,time,tty,vsz,stat,rss,args |\
-        awk "$awk_cmd" > "$EPM_RUN_DIR/$2.pid"
+        awk "$awk_cmd" >> "$EPM_RUN_DIR/$2.pid"
 }
 
-ps_get_state() {
-    # ps_get_state(pid,service)
+ps_get_current_info() {
+    # ps_get_info(pid,service)
     cat "$EPM_RUN_DIR/$1.pid"
 }
+
+ps_write_log() {
+    # ps_write_log(message,service)
+    printf "$(date +%Is) "
+    echo "$1" >> "$EPM_LOG_DIR/$2.log"
+}
+
+ps_get_last_info() {
+    # ps_get_last_info(service)
+    tail -n1 "$EPM_RUN_DIR/$1.pid"
+}
+
+ps_get_last_args() {
+    # ps_get_last_args(service)
+    ps_get_last_info "$1" | awk '{for(i=1;i<=NF;i++){printf "%s ", $i}; printf "\n"}' | cut -d' ' -f 16-
+}
+
+
