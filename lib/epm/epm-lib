@@ -1,25 +1,27 @@
 #!/bin/sh
 # /lib/epm/epm-lib
 
+timestamp()       { printf `date -Is` && echo -n ' '; }
+log()             { timestamp; echo "$1"; }
+graceful_exit()   { echo "EPM exiting… Bye!"; exit 0; }
+restart()         { exec "$EPM_SELF" "$EPM_CONF"; }
 
-timestamp() { printf `date -Is` && echo -n ' '; }
-
-log() { timestamp; echo "$1"; }
-
-
+wake_up() {
+    mkdir -p "$EPM_DB_DIR"
+    touch "$EPM_DB"
+}
 
 run() {
+    cat "$EPM_DB"
     run_start=$(date +%s)
     log "Starting run #${EPM_RUN_COUNTER}…"
-    echo "Delay:"$EPM_RUN_DELAY
     sleep 1."$RANDOM"
-    echo "dc:$(date +%s) $run_start - p"
     run_elapsed=$(echo "$(date +%s) $run_start - p" | dc )
-    echo "Elapsed:"$run_elapased
     left_to_sleep=$(echo "$EPM_RUN_DELAY $run_elapsed - p" | dc)
-    echo "Left:"$left_to_sleep
     EPM_RUN_COUNTER=$(( $EPM_RUN_COUNTER + 1 ))
     log "Sleeping $left_to_sleep seconds…"
     sleep $left_to_sleep
 }
+
+
 

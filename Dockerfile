@@ -6,6 +6,9 @@ COPY etc /etc
 COPY bin /bin
 COPY sbin /sbin
 COPY lib /lib
+COPY var /var
+
+RUN sed -i -e 's/=\.\//=\//' /etc/epm/epm.conf
 
 WORKDIR /
 USER root

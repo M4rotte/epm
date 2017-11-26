@@ -1,0 +1,47 @@
+#!/bin/sh
+# /lib/epm/epmdb-lib
+
+db_key_exists() {
+    grep_cmd='^'"$1"'.*\'"$EPM_DB_SEP"'.*$'
+    grep -qE "$grep_cmd" "$EPM_DB"
+}
+
+db_update() {
+    # update_value(key,value)
+    echo " → update_value($1,$2)"
+    tmp_file=/tmp/$RANDOM-$$
+    awk_cmd='{if ($1 ~ "^'"$1"'$") { printf "%s%s%s\n",$1,"'"$EPM_DB_SEP"'","'"$2"'" } else {print $0} }'
+    awk_ifs="$EPM_DB_SEP"
+    #~ echo awk -F$awk_ifs "$awk_cmd" "$EPM_DB"
+    awk -F$awk_ifs "$awk_cmd" "$EPM_DB" > $tmp_file && mv $tmp_file "$EPM_DB"
+}
+
+db_insert() {
+    # insert_value(key,value)
+    echo " → insert_value($1,$2)"
+    printf "%s%s%s\n" "$1" "$EPM_DB_SEP" "$2" >> "$EPM_DB"
+}
+
+db_store() {
+    # store(key, value)
+    #~ echo " * store($1,$2)"
+    if db_key_exists "$1"; then
+        db_update "$1" "$2"
+    else
+        db_insert "$1" "$2"
+    fi
+}
+
+db_clean() {
+    echo "Before the clean: $(wc -l "$EPM_DB")"
+    tmp_file=/tmp/$RANDOM-$$
+    sort -u "$EPM_DB"> $tmp_file
+    cat $tmp_file > "$EPM_DB"
+    rm $tmp_file
+    echo "After the clean: $(wc -l "$EPM_DB")"
+}
+
+db_get() { 
+    grep_cmd='^'"$1${EPM_DB_SEP}"'.*$'
+    grep "$grep_cmd" "$EPM_DB" |cut -d${EPM_DB_SEP} -f 2
+}

@@ -15,8 +15,6 @@ Usage: $0 <configuration file>
 EOHELP
 }
 
-graceful_exit() { echo "EPM exiting… Bye!"; exit 0; }
-restart() { exec "$EPM_SELF" "$EPM_CONF"; }
 trap graceful_exit 2 15
 trap restart 1
 
@@ -25,8 +23,56 @@ trap restart 1
 
 # source the configuration file
 . "$1"
-# source the library file
-. "${EPM_LIB}" "$1"
+# source files
+. "${EPM_LIB}"
+. "${EPM_DB_LIB}"
+
+wake_up
+
+echo
+
+cat "$EPM_DB"
+
+db_store key value
+db_store joe 89
+db_store bob 42
+db_store joe 12
+db_store bob 100
+
+echo
+
+cat "$EPM_DB"
+
+db_insert bob XXXX
+db_update key 999
+db_update bob 00000
+
+
+cat "$EPM_DB"
+
+db_clean
+
+cat "$EPM_DB"
+
+db_store joe 12
+db_store bob 100
+
+db_insert 888 kkkkkkkk
+db_insert 555 ggggg
+db_update 888 nnn
+db_insert 888 nnn
+db_insert tttt 987
+db_insert tttt 333
+
+cat "$EPM_DB"
+
+db_clean
+
+cat "$EPM_DB"
+
+db_get 888
+db_get tttt
+
 
 # run forever
 while true; do run; done

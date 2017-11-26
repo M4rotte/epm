@@ -1,5 +1,8 @@
 version: "3.4"
 
+volumes:
+  epm-root:
+
 services:
   epm:
     build:
@@ -7,4 +10,6 @@ services:
     image: oxyure/epm:latest
     container_name: epm
     hostname: epm
+    volumes:
+     - epm-root:/root
 
