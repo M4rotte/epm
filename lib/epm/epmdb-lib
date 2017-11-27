@@ -26,7 +26,7 @@ db_insert() {
 }
 
 db_store() {
-    # db_store(key,value)
+    # db_store(key,value) # upsert
     if db_key_exists "$1"; then
         db_update "$1" "$2"
     else
@@ -46,5 +46,5 @@ db_clean() {
 
 db_get() { 
     grep_cmd='^'"$1${EPM_DB_SEP}"'.*$'
-    grep "$grep_cmd" "$EPM_DB" |cut -d${EPM_DB_SEP} -f 2
+    grep "$grep_cmd" "$EPM_DB" |cut -d${EPM_DB_SEP} -f 2-
 }
