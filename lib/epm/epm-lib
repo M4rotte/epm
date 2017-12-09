@@ -14,7 +14,7 @@ dice() {
 
 check_env() {
     # Check if we got all we need. Exit on error if not.
-    for prg in dc grep awk touch printf shuf; do
+    for prg in dc grep awk touch printf shuf which; do
         [ -x "$(which $prg)" ] || { echo "$prg not found, exiting. (\$PATH is $PATH)"; exit 30; }
     done
 }
@@ -51,13 +51,17 @@ dispatch() {
     dice 6 9 && ps_store_current_info 1 _init
     #~ dice 2 9 && ps_get_current_info _self
     #~ dice 1 7 && ps_get_current_info _init
-    dice 2 9 && ps_get_last_info _self
-    dice 1 7 && ps_get_last_info _init
-    dice 4 9 && ps_get_last_args _self
-    dice 5 7 && ps_get_last_args _init
+    #~ dice 2 9 && ps_get_last_info _self
+    #~ dice 1 7 && ps_get_last_info _init
+    #~ dice 4 9 && ps_get_last_args _self
+    #~ dice 5 7 && ps_get_last_args _init
     dice 3 7 && db_store 'toto' $RANDOM
     dice 1 2 && truncate_files "$EPM_LOG_DIR"/*
     dice 1 2 && truncate_files "$EPM_RUN_DIR"/*
+    dice 4 5 && sv_get_start_cmd foo
+    dice 2 5 && sv_get_start_cmd bar
+    dice 3 5 && sv_get_start_cmd sshd
+    dice 2 5 && sv_get_start_cmd inotifywait
 }
 
 run() {

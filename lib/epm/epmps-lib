@@ -39,4 +39,9 @@ ps_get_last_args() {
     ps_get_last_info "$1" | awk '{for(i=1;i<=NF;i++){printf "%s ", $i}; printf "\n"}' | cut -d' ' -f 16-
 }
 
-
+sv_get_start_cmd() {
+    grep_re='^StartCmd.*\s+.*$'
+    start_cmd="$(grep -E "$grep_re" "$EPM_SERVICES_DIR/${1}${EPM_SERVICEFILE_EXT}" 2>/dev/null |awk '{$1=""; gsub(/^[ \t]+/,"",$0)}1')"
+    [ -n "$start_cmd" ] || start_cmd="$(which "$1")"
+    echo "$start_cmd"
+}

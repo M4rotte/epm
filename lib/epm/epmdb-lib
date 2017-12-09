@@ -5,8 +5,8 @@
 # $EPM_DB: file name, must not be empty
 
 db_key_exists() {
-    grep_cmd='^'"$1"'.*\'"$EPM_DB_SEP"'.*$'
-    grep -qE "$grep_cmd" "$EPM_DB"
+    grep_re='^'"$1"'.*\'"$EPM_DB_SEP"'.*$'
+    grep -qE "$grep_re" "$EPM_DB"
 }
 
 db_update() {
@@ -44,6 +44,6 @@ db_clean() {
 }
 
 db_get() { 
-    grep_cmd='^'"$1${EPM_DB_SEP}"'.*$'
-    grep "$grep_cmd" "$EPM_DB" |cut -d${EPM_DB_SEP} -f 2-
+    grep_re='^'"$1${EPM_DB_SEP}"'.*$'
+    grep "$grep_re" "$EPM_DB" |cut -d${EPM_DB_SEP} -f 2-
 }
