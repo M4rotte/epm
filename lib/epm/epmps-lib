@@ -11,10 +11,11 @@ ps_store_current_info() {
     # ps_store_info(pid,service)
     # Write the ps output prefixed with time, which corresponds to this pid, in a file named <service name>.pid in $EPM_RUN_DIR,
     # With with the default settings it’s /var/run/<service name>.pid
-    awk_cmd='{ if ($4 == '"$1"') { print $0 } }'
+    awk_cmd='{ if ($4 == '"$1"') { printf $0 } }'
     printf "$(date +%s)$EPM_DB_SEP" >> "$EPM_RUN_DIR/$2.pid"
-    ps -o user,group,comm,pid,ppid,pgid,etime,nice,rgroup,ruser,time,tty,vsz,stat,rss,args |\
+    ps -e -o user,group,comm,pid,ppid,pgid,etime,nice,rgroup,ruser,time,tty,vsz,stat,rss,args |\
         awk "$awk_cmd" >> "$EPM_RUN_DIR/$2.pid"
+    printf "\n" >> "$EPM_RUN_DIR/$2.pid"
 }
 
 ps_get_current_info() {

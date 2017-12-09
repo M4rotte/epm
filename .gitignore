@@ -2,5 +2,4 @@
 .gitconfig
 .ssh
 .env
-
-
+var/

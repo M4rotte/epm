@@ -3,7 +3,7 @@
 
 timestamp()       { printf `date -Is` && echo -n ' '; }
 write_log()       { timestamp; echo -e "$1" >> "$EPM_LOG"; }
-graceful_exit()   { echo "EPM exiting… Bye!"; exit 0; }
+graceful_exit()   { echo " EPM exiting… Bye!"; exit 0; }
 restart()         { exec "$EPM_SELF" "$EPM_CONF"; }
 
 dice() {
@@ -14,7 +14,7 @@ dice() {
 
 check_env() {
     # Check if we got all we need. Exit on error if not.
-    for prg in grep awk touch printf shuf; do
+    for prg in dc grep awk touch printf shuf; do
         [ -x "$(which $prg)" ] || { echo "$prg not found, exiting. (\$PATH is $PATH)"; exit 30; }
     done
 }
@@ -55,6 +55,7 @@ dispatch() {
     dice 1 7 && ps_get_last_info _init
     dice 4 9 && ps_get_last_args _self
     dice 5 7 && ps_get_last_args _init
+    dice 3 7 && db_store 'toto' $RANDOM
     dice 1 2 && truncate_files "$EPM_LOG_DIR"/*
     dice 1 2 && truncate_files "$EPM_RUN_DIR"/*
 }

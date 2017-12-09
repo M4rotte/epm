@@ -40,8 +40,7 @@ db_clean() {
     sort -u "$EPM_DB"> $tmp_file
     cat $tmp_file > "$EPM_DB"
     rm $tmp_file
-    echo "$(wc -l "$EPM_DB") records in database"
-    #~ echo "After the clean: $(wc -l "$EPM_DB")"
+    echo "$(wc -l < "$EPM_DB") records in database"
 }
 
 db_get() { 
