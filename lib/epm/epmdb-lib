@@ -35,15 +35,18 @@ db_store() {
 }
 
 db_clean() {
-    #~ echo "Before the cleaning: $(wc -l "$EPM_DB")"
     tmp_file=/tmp/$RANDOM-$$
     sort -u "$EPM_DB"> $tmp_file
     cat $tmp_file > "$EPM_DB"
     rm $tmp_file
-    echo "$(wc -l < "$EPM_DB") records in database"
 }
 
 db_get() { 
     grep_re='^'"$1${EPM_DB_SEP}"'.*$'
     grep "$grep_re" "$EPM_DB" |cut -d${EPM_DB_SEP} -f 2-
+}
+
+db_purge() {
+    > "$EPM_DB"
+    write_log 'EPM database purged.'
 }

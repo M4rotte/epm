@@ -1,7 +1,9 @@
 version: "3.4"
 
-volumes:
-  epm-root:
+networks:
+  centreon-net:
+    external:
+      name: centreon-net
 
 services:
   epm:
@@ -10,6 +12,8 @@ services:
     image: oxyure/epm:latest
     container_name: epm
     hostname: epm
-    volumes:
-     - epm-root:/root
+    networks:
+      centreon-net:
+          ipv4_address: "172.36.0.233"
+
 

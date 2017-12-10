@@ -1,7 +1,7 @@
 #!/bin/sh
 # /lib/epm/epm-lib
 
-timestamp()       { printf `date -Is` && echo -n ' '; }
+timestamp()       { printf `date -Is` >> "$EPM_LOG" && echo -n ' ' >> "$EPM_LOG"; }
 write_log()       { timestamp; echo -e "$1" >> "$EPM_LOG"; }
 graceful_exit()   { echo " EPM exiting… Bye!"; exit 0; }
 restart()         { exec "$EPM_SELF" "$EPM_CONF"; }
@@ -19,11 +19,19 @@ check_env() {
     done
 }
 
+ensure_ssh_host_keys() {
+    for type in rsa dsa ecdsa ed25519; do
+        [ -f /etc/ssh/ssh_host_${type}_key ] || ssh-keygen -t "$type" -N '' -f /etc/ssh/ssh_host_${type}_key 1>/dev/null
+    done
+    write_log "SSH host keys generated."
+}
+
 wake_up() {
     {
         check_env &&\
-        mkdir -p "$EPM_DB_DIR" "$EPM_LOG_DIR" &&\
+        mkdir -p "$EPM_DB_DIR" "$EPM_LOG_DIR" "$EPM_RUN_DIR" &&\
         touch "$EPM_DB" "$EPM_LOG" &&\
+        ([ "$EPM_ENSURE_SSH_KEYS" = 'yes' ] && ensure_ssh_host_keys) &&\
         ps_store_current_info $$ _self &&\
         ps_store_current_info 1  _init
     } \
@@ -41,41 +49,35 @@ truncate_files() {
 }
 
 dispatch() {
-    # Do shit randomly (WIP)
-    dice 2 5 && db_clean # Get rid of non-uniq entries. Randomly but roughly each 5/2 run…
+    dice 1 10 && db_clean # Get rid of non-uniq entries. Randomly but roughly each 1/10 run…
                          # TODO: write a function that works like anacron
-                         
-    dice 3 7 && db_store 'toto' $RANDOM
-    dice 2 10 && db_insert "xx$RANDOM" "$(date)"
-    dice 6 9 && ps_store_current_info $$ _self
-    dice 6 9 && ps_store_current_info 1 _init
-    #~ dice 2 9 && ps_get_current_info _self
-    #~ dice 1 7 && ps_get_current_info _init
-    #~ dice 2 9 && ps_get_last_info _self
-    #~ dice 1 7 && ps_get_last_info _init
-    #~ dice 4 9 && ps_get_last_args _self
-    #~ dice 5 7 && ps_get_last_args _init
-    dice 3 7 && db_store 'toto' $RANDOM
-    dice 1 2 && truncate_files "$EPM_LOG_DIR"/*
-    dice 1 2 && truncate_files "$EPM_RUN_DIR"/*
-    dice 4 5 && sv_get_start_cmd foo
-    dice 2 5 && sv_get_start_cmd bar
-    dice 3 5 && sv_get_start_cmd sshd
-    dice 2 5 && sv_get_start_cmd inotifywait
+    ps_store_current_info $$ _self
+    ps_store_current_info 1 _init
+    for entry in ${EPM_SERVICES_DIR}/*${EPM_SERVICEFILE_EXT}; do
+        tmp=${entry##*/}; service=${tmp%\.*}
+        cmd_to_run="$(sv_prescription "$service" "$(ps_get_last_info "$service")" "$(sv_get_desired_state "$service")")"
+        [ -n "$cmd_to_run" ] && {
+            write_log "Running \`$cmd_to_run\` in the background"
+            $cmd_to_run &
+            args_store_current_info "$cmd_to_run" $service
+        }
+    done    
 }
 
 run() {
     cat "$EPM_DB"
     run_start=$(date +%s)
-    write_log "\nStarting run #${EPM_RUN_COUNTER}…"
+    write_log "Starting run #${EPM_RUN_COUNTER}…"
     
     dispatch
     
     run_elapsed=$(echo "$(date +%s) $run_start - p" | dc )
     left_to_sleep=$(echo "$EPM_RUN_DELAY $run_elapsed - p" | dc)
     EPM_RUN_COUNTER=$(( $EPM_RUN_COUNTER + 1 ))
-    write_log "Sleeping $left_to_sleep seconds…"
-    sleep $left_to_sleep
+    [ $left_to_sleep -ge 0 ] && {
+        write_log "Sleeping $left_to_sleep seconds…"
+        sleep $left_to_sleep
+    }
 }
 
 
