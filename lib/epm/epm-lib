@@ -59,7 +59,19 @@ dispatch() {
         [ -n "$cmd_to_run" ] && {
             write_log "Running \`$cmd_to_run\` in the background"
             $cmd_to_run &
-            args_store_current_info "$cmd_to_run" $service
+            leader=$!
+            echo Leader is $leader
+            related="$(pgrep -P $leader)"
+            [ -z $related ] && related="$(pgrep -s $leader)"
+            echo Related:
+            echo $related
+            echo Processes:
+            ps -e -o pid,ppid,pgid,user,group,time,etime,comm,stat,args
+            ps_store_current_info $leader "$service"
+            args_store_current_info "$cmd_to_run" "$service"
+            for process in $(pgrep -P $leader); do
+                ps_store_current_info $process "$service"
+            done
         }
     done    
 }
