@@ -13,20 +13,19 @@ ps_store_current_info() {
     # ps_store_info(pid,service)
     # Write the ps output prefixed with time, which corresponds to this pid, in a file named <service name>.pid in $EPM_RUN_DIR,
     # With with the default settings it’s /var/run/<service name>.pid
-    printf "$(date +%s)$EPM_DB_SEP" >> "$EPM_RUN_DIR/$2.pid"
-    ps -e -o pid,ppid,user,group,comm,pgid,etime,nice,rgroup,ruser,time,tty,vsz,stat,rss,args |\
-        filter_pid $1 >> "$EPM_RUN_DIR/$2.pid"
-    printf "\n" >> "$EPM_RUN_DIR/$2.pid"
+    info="$(ps -e -o pid,ppid,user,group,comm,pgid,etime,nice,rgroup,ruser,time,tty,vsz,stat,rss,args | filter_pid $1)"
+    echo "PROC STORE ($2:$1): $info" >&2
+    [ -n "$info" ] && printf "%s\n" "$(date +%s)${EPM_DB_SEP}${info}" >> "$EPM_RUN_DIR/$2.pid"
 }
 
 args_store_current_info() {
     # ps_store_info(args,service)
     # Write the ps output prefixed with time, which corresponds to thiose args, in a file named <service name>.pid in $EPM_RUN_DIR,
     # With with the default settings it’s /var/run/<service name>.pid
-    printf "$(date +%s)$EPM_DB_SEP" >> "$EPM_RUN_DIR/$2.pid"
     grep_re='^.* '"$1"'$'
-    ps -e -o pid,ppid,user,group,comm,pgid,etime,nice,rgroup,ruser,time,tty,vsz,stat,rss,args |\
-        grep -E "$grep_re" >> "$EPM_RUN_DIR/$2.pid" >> "$EPM_RUN_DIR/$2.pid"
+    info="$(ps -e -o pid,ppid,user,group,comm,pgid,etime,nice,rgroup,ruser,time,tty,vsz,stat,rss,args | grep -E "$grep_re" | sed -e 's/  */ /g')"
+    echo "ARGS STORE ($2:$1): $info" >&2
+    [ -n "$info" ] && printf "%s\n" "$(date +%s)${EPM_DB_SEP}${info}" >> "$EPM_RUN_DIR/$2.pid"
 }
 
 ps_write_log() {
@@ -77,12 +76,16 @@ sv_pids() {
 sv_is_managed() { [ -f "$EPM_SERVICES_DIR/$1$EPM_SERVICEFILE_EXT" ]; }
 
 sv_prescription() {
+    start_cmd="$(sv_get_start_cmd "$1")"
     ! sv_is_running "$1" && [ "$3" = 'running' ] && {
         write_log "Service \"$1\" should be running…"
-        prescription="$(sv_get_start_cmd "$1")"
+        #~ ps -e -o pid,ppid,pgid,etime,comm,stat,args >&2
+        args_store_current_info "$start_cmd" "$1"
+        prescription="$start_cmd"
     }
     sv_is_running "$1" && [ "$3" = 'stopped' ] && {
         write_log "Service \"$1\" should be stopped…"
+        args_store_current_info "$start_cmd" "$1"
         prescription="kill -15 -- -$service_pids"
     }
     echo $prescription

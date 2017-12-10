@@ -30,13 +30,14 @@ EOHELP
 . "${EPM_PS_LIB}"
 
 
-trap graceful_exit 2 3 15
-trap restart 1
+trap graceful_exit 3 15
+trap restart 2
+trap reload 1
 
 wake_up
 
-# run forever
-while true; do run; done
+# If first argument is an existing (configuration) file: run forever
+[ -f "$1" ] && while true; do run; done
 
 
 

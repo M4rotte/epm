@@ -3,8 +3,10 @@
 
 timestamp()       { printf `date -Is` >> "$EPM_LOG" && echo -n ' ' >> "$EPM_LOG"; }
 write_log()       { timestamp; echo -e "$1" >> "$EPM_LOG"; }
+
 graceful_exit()   { echo " EPM exiting… Bye!"; exit 0; }
 restart()         { exec "$EPM_SELF" "$EPM_CONF"; }
+reload()          { source "$EPM_CONF"; }
 
 dice() {
     # dice(val,max)
@@ -14,7 +16,7 @@ dice() {
 
 check_env() {
     # Check if we got all we need. Exit on error if not.
-    for prg in dc grep awk touch printf shuf which; do
+    for prg in dc grep awk touch printf shuf which sed tr; do
         [ -x "$(which $prg)" ] || { echo "$prg not found, exiting. (\$PATH is $PATH)"; exit 30; }
     done
 }
@@ -23,7 +25,7 @@ ensure_ssh_host_keys() {
     for type in rsa dsa ecdsa ed25519; do
         [ -f /etc/ssh/ssh_host_${type}_key ] || ssh-keygen -t "$type" -N '' -f /etc/ssh/ssh_host_${type}_key 1>/dev/null
     done
-    write_log "SSH host keys generated."
+    write_log "SSH host keys OK."
 }
 
 wake_up() {
@@ -56,22 +58,19 @@ dispatch() {
     for entry in ${EPM_SERVICES_DIR}/*${EPM_SERVICEFILE_EXT}; do
         tmp=${entry##*/}; service=${tmp%\.*}
         cmd_to_run="$(sv_prescription "$service" "$(ps_get_last_info "$service")" "$(sv_get_desired_state "$service")")"
+        cmd_to_run="$(printf "%s" "$cmd_to_run" | tr '\n' ' ' | awk '{$1=$1;}1')"
         [ -n "$cmd_to_run" ] && {
+            echo "Command to run: $cmd_to_run"
             write_log "Running \`$cmd_to_run\` in the background"
             $cmd_to_run &
-            leader=$!
-            echo Leader is $leader
-            related="$(pgrep -P $leader)"
-            [ -z $related ] && related="$(pgrep -s $leader)"
-            echo Related:
-            echo $related
-            echo Processes:
-            ps -e -o pid,ppid,pgid,user,group,time,etime,comm,stat,args
-            ps_store_current_info $leader "$service"
+            bgjob=$!
+            echo Background job \`$cmd_to_run\` has PID $bgjob 
+            children="$(pgrep -P $bgjob)"
+            related="$(pgrep -s $bgjob)"
             args_store_current_info "$cmd_to_run" "$service"
-            for process in $(pgrep -P $leader); do
-                ps_store_current_info $process "$service"
-            done
+            for pid in $children; do ps_store_current_info $pid "$service"; done
+            for pid in $related; do ps_store_current_info $pid "$service"; done
+            ps_store_current_info $bgjob "$service"
         }
     done    
 }
