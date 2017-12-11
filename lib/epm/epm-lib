@@ -60,7 +60,7 @@ dispatch() {
         cmd_to_run="$(sv_prescription "$service" "$(ps_get_last_info "$service")" "$(sv_get_desired_state "$service")")"
         cmd_to_run="$(printf "%s" "$cmd_to_run" | tr '\n' ' ' | awk '{$1=$1;}1')"
         [ -n "$cmd_to_run" ] && {
-            echo "Command to run: $cmd_to_run"
+            echo " *** $cmd_to_run"
             write_log "Running \`$cmd_to_run\` in the background"
             $cmd_to_run &
             bgjob=$!

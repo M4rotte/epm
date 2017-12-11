@@ -1,31 +1,34 @@
 #!/bin/sh
 # /lib/epm/epmps-lib
 
-# $EPM_DB_SEP: field separator
-# NB: Fields separated by this separator are:
-#      - `$(date +%s)`
-#      - `ps -o pid,ppid,user,group,pgid,etime,nice,rgroup,ruser,time,tty,vsz,stat,rss,comm,args | awk '{ if ($4 == '"$1"') { print $0 } }'`
-# The ps’s output values which compose the second field are separated by spaces.
-
 filter_pid() { awk -v pid="$1" -v ORS= '$1 == pid{$1=$1; print}'; }
+
+epm_pslib_ps_fields='pid,ppid,pgid,comm,user,group,ruser,rgroup,time,etime,nice,tty,vsz,rss,stat,comm,args'
 
 ps_store_current_info() {
     # ps_store_info(pid,service)
-    # Write the ps output prefixed with time, which corresponds to this pid, in a file named <service name>.pid in $EPM_RUN_DIR,
-    # With with the default settings it’s /var/run/<service name>.pid
-    info="$(ps -e -o pid,ppid,user,group,pgid,etime,nice,rgroup,ruser,time,tty,vsz,stat,rss,comm,args | filter_pid $1)"
+    # Write the ps output prefixed with time, which corresponds to the given pid, in a file named <service name>.pid in $EPM_RUN_DIR,
+    info="$(ps -e -o "$epm_pslib_ps_fields" | filter_pid $1)"
     echo "PROC STORE ($2:$1): $info" >&2
     [ -n "$info" ] && printf "%s\n" "$(date +%s)${EPM_DB_SEP}${info}" >> "$EPM_RUN_DIR/$2.pid"
 }
 
+comm_store_current_info() {
+    # comm_store_current_info(comm,service)
+    # Write the ps output prefixed with time, which corresponds to the given command, in a file named <service name>.pid in $EPM_RUN_DIR,
+    pid="$(ps -e -o pid,comm,stat | grep " $1 " | awk '{print $1}')"
+    for p in $pid; do ps_store_current_info $p "$2"; done
+}
+
 args_store_current_info() {
-    # ps_store_info(args,service)
-    # Write the ps output prefixed with time, which corresponds to thiose args, in a file named <service name>.pid in $EPM_RUN_DIR,
-    # With with the default settings it’s /var/run/<service name>.pid
+    # args_store_current_info(args,service)
+    # Write the ps output prefixed with time, which corresponds to the given args, in a file named <service name>.pid in $EPM_RUN_DIR,
     grep_re='^.* '"$1"'$'
-    info="$(ps -e -o pid,ppid,user,group,pgid,etime,nice,rgroup,ruser,time,tty,vsz,stat,rss,comm,args | grep -E "$grep_re" | sed -e 's/  */ /g')"
-    echo "ARGS STORE ($2:$1): $info" >&2
-    [ -n "$info" ] && printf "%s\n" "$(date +%s)${EPM_DB_SEP}${info}" >> "$EPM_RUN_DIR/$2.pid"
+    info="$(ps -e -o "$epm_pslib_ps_fields" | grep -E "$grep_re" | sed -e 's/  */ /g' | awk '{$1=$1; print $0; }')"
+    printf "%s\n" "$info" | while read -r line; do
+        echo "ARGS STORE ($2:$1): $line" >&2
+        [ -n "$line" ] && printf "%s\n" "$(date +%s)${EPM_DB_SEP}${line}" >> "$EPM_RUN_DIR/$2.pid"
+    done
 }
 
 ps_write_log() {
@@ -70,21 +73,18 @@ sv_get_desired_state() {
 sv_pids() {
     # sv_pids(service)
     start_cmd="$(sv_get_start_cmd "$1")"
-    echo StartCmd: $start_cmd >&2
     grep_filter='^.* '"$start_cmd"'$'
-    echo Filter  : $grep_filter >&2
     ps -e -o pid,args | grep -E "$grep_filter" | awk '{print $1}'
 }
 
 sv_pids_by_command() {
     #sv_pids_by_command(command)
-    ps -e -o pid,comm | grep "$1" | awk '{print $1}'
+    ps -e -o pid,comm | grep " $1" | awk '{print $1}'
 }
 
 sv_is_running() {
     # sv_is_running(service)
     command="$(sv_get_comm "$1")"
-    echo Command : $command >&2
     if [ -z "$command" ]; then service_pids="$(sv_pids "$1")"
     else service_pids="$(sv_pids_by_command "$command")"; fi
     [ -n "$service_pids" ]
@@ -94,18 +94,22 @@ sv_is_managed() { [ -f "$EPM_SERVICES_DIR/$1$EPM_SERVICEFILE_EXT" ]; }
 
 sv_prescription() {
     start_cmd="$(sv_get_start_cmd "$1")"
+    command="$(sv_get_comm "$1")"
     ! sv_is_running "$1" && [ "$3" = 'running' ] && {
         write_log "Service \"$1\" should be running…"
-        args_store_current_info "$start_cmd" "$1"
+        if [ -z "$command" ]; then args_store_current_info "$start_cmd" "$1"
+        else comm_store_current_info "$command" "$1"; fi
         prescription="$start_cmd"
     }
     sv_is_running "$1" && [ "$3" = 'stopped' ] && {
         write_log "Service \"$1\" should be stopped…"
-        args_store_current_info "$start_cmd" "$1"
+        if [ -z "$command" ]; then args_store_current_info "$start_cmd" "$1"
+        else comm_store_current_info "$command" "$1"; fi
         prescription="kill -15 -- -$service_pids"
     }
     sv_is_running "$1" && [ "$3" = 'running' ] && {
-        args_store_current_info "$start_cmd" "$1"
+        if [ -z "$command" ]; then args_store_current_info "$start_cmd" "$1"
+        else comm_store_current_info "$command" "$1"; fi
         prescription=''
     }
     echo $prescription
