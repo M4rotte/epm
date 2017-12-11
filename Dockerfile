@@ -1,6 +1,6 @@
 FROM alpine:3.6
 
-RUN apk update && apk add tini bind-tools openssh nginx
+RUN apk update && apk add tini bind-tools openssh nginx php7-fpm
 
 COPY etc /etc
 COPY bin /bin
