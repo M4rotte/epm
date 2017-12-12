@@ -23,22 +23,18 @@ check_env() {
 
 ensure_ssh_host_keys() {
     for type in rsa dsa ecdsa ed25519; do
-        [ -f /etc/ssh/ssh_host_${type}_key ] || ssh-keygen -t "$type" -N '' -f /etc/ssh/ssh_host_${type}_key 1>/dev/null
+        [ -f /etc/ssh/ssh_host_${type}_key ] ||  ssh-keygen -t "$type" -N '' -f /etc/ssh/ssh_host_${type}_key 1>/dev/null
     done
     write_log "SSH host keys OK."
 }
 
 wake_up() {
-    {
-        check_env &&\
-        mkdir -p "$EPM_DB_DIR" "$EPM_LOG_DIR" "$EPM_RUN_DIR" &&\
-        touch "$EPM_DB" "$EPM_LOG" &&\
-        ([ "$EPM_ENSURE_SSH_KEYS" = 'yes' ] && ensure_ssh_host_keys) &&\
-        ps_store_current_info $$ _self &&\
-        ps_store_current_info 1  _init
-    } \
-    || { write_log "Error during EPM awakening. Exiting…"; exit 31; }
-    
+    check_env
+    { mkdir -p "$EPM_DB_DIR" "$EPM_LOG_DIR" "$EPM_RUN_DIR" && touch "$EPM_DB" "$EPM_LOG"; } ||\
+        { echo "Can’t create directories!" >&2; write_log "Can’t create directories!"; exit 31; }
+    [ "$EPM_ENSURE_SSH_KEYS" = 'yes' ] && ensure_ssh_host_keys
+    ps_store_current_info $$ _self
+    ps_store_current_info 1  _init
 }
 
 truncate_files() {

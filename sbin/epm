@@ -4,6 +4,8 @@
 # Error codes:
 # 1.  No configuration file specified
 # 30. One or more binaries are missing (grep, awk, …)
+# 31. Can’t create directories
+
 
 EPM_SELF=$0
 EPM_CONF=$1
